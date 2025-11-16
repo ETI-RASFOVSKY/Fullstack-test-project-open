@@ -35,9 +35,11 @@ function App() {
     // Handle form input changes
     const handleInputChange = (e) => {
         const { name, value } = e.target;
+        // allow only letters: English A-Z a-z and Hebrew א-ת (remove any other characters)
+        const filtered = value.replace(/[^A-Za-z\u05D0-\u05EA]/g, '');
         setNewProduct(prev => ({
             ...prev,
-            [name]: value
+            [name]: filtered
         }));
     };
 
@@ -46,7 +48,14 @@ function App() {
         e.preventDefault();
         
         if (!newProduct.name.trim() || !newProduct.category.trim()) {
-            setError('Please fill in both name and category');
+            setError('אנא מלא שם וקטגוריה (אותיות בלבד)');
+            return;
+        }
+
+        // final client-side validation (should already be filtered while typing)
+        const lettersOnly = /^[A-Za-z\u05D0-\u05EA]+$/;
+        if (!lettersOnly.test(newProduct.name) || !lettersOnly.test(newProduct.category)) {
+            setError('שם וקטגוריה חייבים לכלול אותיות בלבד');
             return;
         }
 

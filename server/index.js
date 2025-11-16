@@ -7,6 +7,11 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// helper to handle async route handlers and forward errors to the error middleware
+const asyncHandler = (fn) => (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+};
+
 // Temporary data store
 let products = [
     {
@@ -24,35 +29,53 @@ let products = [
 ];
 
 // GET /api/products - retrieve all products
-app.get('/api/products', (req, res) => {
-    try {
-        res.json(products);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to retrieve products' });
-    }
-});
+app.get('/api/products', asyncHandler(async (req, res) => {
+    res.json(products);
+}));
 
 // POST /api/products - add a new product
-app.post('/api/products', (req, res) => {
-    try {
-        const { name, category } = req.body;
+app.post('/api/products', asyncHandler(async (req, res) => {
+    const { name, category } = req.body;
 
-        if (!name || !category) {
-            return res.status(400).json({ error: 'Name and category are required' });
-        }
+    const nameTrim = typeof name === 'string' ? name.trim() : '';
+    const categoryTrim = typeof category === 'string' ? category.trim() : '';
 
-        const newProduct = {
-            id: String(products.length + 1),
-            name: name.trim(),
-            category: category.trim(),
-            createdAt: new Date()
-        };
-
-        products.push(newProduct);
-        res.status(201).json(newProduct);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to add product' });
+    if (!nameTrim || !categoryTrim) {
+        return res.status(400).json({ error: 'שם וקטגוריה נדרשים' });
     }
+
+    // allow only letters: English A-Z a-z and Hebrew א-ת (no spaces, numbers or punctuation)
+    const lettersOnly = /^[A-Za-z\u05D0-\u05EA]+$/;
+    if (!lettersOnly.test(nameTrim) || !lettersOnly.test(categoryTrim)) {
+        return res.status(400).json({ error: 'Name and category must contain only letters (no spaces/numbers/characters)' });
+    }
+
+    const newProduct = {
+        id: String(products.length + 1),
+        name: nameTrim,
+        category: categoryTrim,
+        createdAt: new Date()
+    };
+
+    products.push(newProduct);
+    res.status(201).json(newProduct);
+}));
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Error handler caught:', err);
+    res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+});
+
+// Process-level handlers for unhandled errors/rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    // In many cases it's safer to exit after an uncaught exception and restart
+    process.exit(1);
 });
 
 // Start the server
