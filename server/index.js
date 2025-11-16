@@ -25,12 +25,34 @@ let products = [
 
 // GET /api/products - retrieve all products
 app.get('/api/products', (req, res) => {
-    // IMPLEMENT FETCH PRODUCTS LOGIC
+    try {
+        res.json(products);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to retrieve products' });
+    }
 });
 
 // POST /api/products - add a new product
 app.post('/api/products', (req, res) => {
-    // IMPLEMENT ADD PRODUCT LOGIC
+    try {
+        const { name, category } = req.body;
+
+        if (!name || !category) {
+            return res.status(400).json({ error: 'Name and category are required' });
+        }
+
+        const newProduct = {
+            id: String(products.length + 1),
+            name: name.trim(),
+            category: category.trim(),
+            createdAt: new Date()
+        };
+
+        products.push(newProduct);
+        res.status(201).json(newProduct);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to add product' });
+    }
 });
 
 // Start the server
